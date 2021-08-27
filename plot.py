@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
+
+import click
 import svgwrite
 
-if len(sys.argv) > 1:
-    UNIT = sys.argv[1]
-else:
-    UNIT = 'mi'
-
-distances = []
-for line in sys.stdin:
-    (d, e) = line.split(' ', 2)
-    distances.append((float(d), float(e)))
 
 MILES_PER_METER = 0.0006213712
 METERS_PER_MILE = 1609.344
@@ -23,36 +16,60 @@ STEP_FOR = {
 
 VERTICAL_STRETCH = 5
 
-min_elev = min([e for d, e in distances])
-max_elev = max([e for d, e in distances])
-total_meters = max([d for d, e in distances])
+@click.command()
+@click.option('--output-unit', '-o', type=click.Choice(['km', 'mi']), default='mi')
+@click.argument('distances_file', type=click.File('r'), default=sys.stdin)
+def main(distances_file, output_unit):
+    distances = []
+    for line in distances_file:
+        (d, e) = line.split(' ', 2)
+        distances.append((float(d), float(e)))
 
-total_miles = total_meters * MILES_PER_METER
+    min_elev = min([e for d, e in distances])
+    max_elev = max([e for d, e in distances])
+    total_meters = max([d for d, e in distances])
 
-mx = max_elev * VERTICAL_STRETCH
-mn = min_elev * VERTICAL_STRETCH
-points = [ (d, e * VERTICAL_STRETCH) for d, e in distances ]
-height = mx - mn
-width = total_meters - 1
-offset = height + mn * 2
+    total_miles = total_meters * MILES_PER_METER
 
-drawing = svgwrite.Drawing()
-drawing.viewbox(0, mn, width, height)
-g = drawing.g(transform=f'matrix(1 0 0 -1 0 {offset})')
+    mx = max_elev * VERTICAL_STRETCH
+    mn = min_elev * VERTICAL_STRETCH
+    points = [ (d, e * VERTICAL_STRETCH) for d, e in distances ]
+    height = mx - mn
+    width = total_meters - 1
+    offset = height + mn * 2
 
-# interval marker
-step = STEP_FOR[UNIT]
-i = step
-while i < total_meters:
-    line = drawing.line(start=(i, mn), end=(i, mx), stroke='black', stroke_width='.5%', stroke_opacity='0.5')
-    line.set_desc(title=f'{int(i/step)}{UNIT}')
-    g.add(line)
-    i += step
+    drawing = svgwrite.Drawing()
+    drawing.viewbox(0, mn, width, height)
+    g = drawing.g(transform=f'matrix(1 0 0 -1 0 {offset})')
 
-# elevation line
-polyline = drawing.polyline(points, stroke='black', stroke_width='.5%', fill='none')
+    # interval marker
+    step = STEP_FOR[output_unit]
+    i = step
+    while i < total_meters:
+        line = drawing.line(start=(i, mn), end=(i, mx), stroke='black', stroke_width='.5%', stroke_opacity='0.5')
+        line.set_desc(title=f'{int(i/step)}{output_unit}')
+        g.add(line)
+        i += step
 
-g.add(polyline)
-drawing.add(g)
+    """
+    FEET_PER_METER = 3.28084
+    METERS_PER_FOOT = 0.3048
+    rise = 500 * METERS_PER_FOOT * VERTICAL_STRETCH
+    j = mn + rise
+    while j < mx:
+        line = drawing.line(start=(0, j), end=(width, j), stroke='black', stroke_width='.5%', stroke_opacity='0.5')
+        g.add(line)
+        j += rise
+    """
 
-print(drawing.tostring())
+    # elevation line
+    polyline = drawing.polyline(points, stroke='black', stroke_width='.5%', fill='none')
+
+    g.add(polyline)
+    drawing.add(g)
+
+    print(drawing.tostring())
+
+
+if __name__ == '__main__':
+    main()

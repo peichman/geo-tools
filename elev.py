@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import click
 import gpxpy
 import gpxpy.gpx
 import os
@@ -63,19 +64,25 @@ def get_elevation(lat, lon):
     grid = data_from[gridfile]
     return grid.elevation_for[grid.dataset.index(lon, lat)]
 
-with open(sys.argv[1], 'r') as gpx_file:
+@click.command()
+@click.argument('gpx_file', type=click.File('r'), default=sys.stdin)
+def main(gpx_file):
     gpx = gpxpy.parse(gpx_file)
 
-for track in gpx.tracks:
-    for segment in track.segments:
-        for point in segment.points:
-            if point.elevation is None:
-                # use rasterio to get the elevation here
-                point.elevation = get_elevation(point.latitude, point.longitude)
+    for track in gpx.tracks:
+        for segment in track.segments:
+            for point in segment.points:
+                if point.elevation is None:
+                    # use rasterio to get the elevation here
+                    point.elevation = get_elevation(point.latitude, point.longitude)
 
-try:
-    #TODO: how to stop gpxpy from truncating trailing 0s in decimal places?
-    print(gpx.to_xml())
-except BrokenPipeError:
-    # pipe closed STDOUT, we don't care
-    pass
+    try:
+        #TODO: how to stop gpxpy from truncating trailing 0s in decimal places?
+        print(gpx.to_xml())
+    except BrokenPipeError:
+        # pipe closed STDOUT, we don't care
+        pass
+
+
+if __name__ == '__main__':
+    main()
