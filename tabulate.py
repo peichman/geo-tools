@@ -2,6 +2,7 @@
 
 import sys
 from datetime import timedelta
+from importlib import import_module
 
 import click
 import gpxpy.gpx
@@ -10,9 +11,11 @@ from geographiclib.geodesic import Geodesic
 
 @click.command()
 @click.argument('gpx_file', type=click.File('r'), default=sys.stdin)
-def main(gpx_file):
+@click.option('--output-fields', '-o', default='distance,elevation')
+def main(gpx_file, output_fields):
+    fields = [get_function(name) for name in output_fields.split(',')]
+
     gpx = gpxpy.parse(gpx_file)
-    fields = (distance, elevation)
 
     for track in gpx.tracks:
         for segment in track.segments:
@@ -30,6 +33,13 @@ def track(attr_name, init=0):
             setattr(func, attr_name, init)
         return func
     return decorated
+
+
+def get_function(name):
+    try:
+        return getattr(import_module('__main__'), name)
+    except AttributeError as e:
+        raise click.BadParameter(f'No output function named {name}', param_hint='--output-fields') from e
 
 
 @track('total')
@@ -58,6 +68,9 @@ def elapsed_time(n, point, segment):
     previous_point = segment.points[n - 1]
     elapsed_time.total += (point.time - previous_point.time)
     return elapsed_time.total
+
+
+AVAILABLE_FUNCTIONS = [distance, elevation, clock_time, elapsed_time]
 
 
 if __name__ == '__main__':
