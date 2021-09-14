@@ -9,11 +9,21 @@ import gpxpy.gpx
 from geographiclib.geodesic import Geodesic
 
 
+class DelimitedList(click.ParamType):
+    def __init__(self, delimiter=','):
+        self.delimiter = delimiter
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, list):
+            return value
+
+        return value.split(self.delimiter)
+
 @click.command()
 @click.argument('gpx_file', type=click.File('r'), default=sys.stdin)
-@click.option('--output-fields', '-o', default='distance,elevation')
+@click.option('--output-fields', '-o', type=DelimitedList(), default=['distance', 'elevation'])
 def main(gpx_file, output_fields):
-    fields = [get_function(name) for name in output_fields.split(',')]
+    fields = [get_function(name) for name in output_fields]
 
     gpx = gpxpy.parse(gpx_file)
 
