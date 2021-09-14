@@ -10,9 +10,10 @@ import sys
 
 from collections import namedtuple
 from math import floor, ceil
+from pathlib import Path
 from zipfile import ZipFile
 
-DEM_ROOT = os.path.join(os.environ['HOME'], 'gps/dem')
+DEM_ROOT = Path(os.environ['HOME']) / 'gps' / 'dem'
 
 GridFile = namedtuple('GridFile', 'dataset elevation_for')
 data_from = {}
@@ -24,19 +25,19 @@ def get_gridfile(lat, lon):
     gridname = f'USGS_NED_13_n{n:02d}w{w:03d}_IMG'
 
     def extract_zip(zip_file):
-        target_dir = os.path.join(DEM_ROOT, gridname)
-        os.makedirs(target_dir)
+        target_dir = DEM_ROOT / gridname
+        os.makedirs(str(target_dir))
         print(f'Extracting {zip_file} contents to {target_dir}', file=sys.stderr)
-        with ZipFile(zip_file) as zip_archive:
-            zip_archive.extractall(path=target_dir)
+        with ZipFile(str(zip_file)) as zip_archive:
+            zip_archive.extractall(path=str(target_dir))
 
-    img_file = os.path.join(DEM_ROOT, gridname, f'{gridname}.img')
-    if os.path.isfile(img_file):
+    img_file = DEM_ROOT / gridname / f'{gridname}.img'
+    if img_file.is_file():
         return img_file
 
     # .img file not found, check for .zip and extract
-    zip_file = os.path.join(DEM_ROOT, f'{gridname}.zip')
-    if os.path.isfile(zip_file):
+    zip_file = DEM_ROOT / f'{gridname}.zip'
+    if zip_file.is_file():
         extract_zip(zip_file)
         return img_file
 
